@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract XLinerStream is ReentrancyGuard {
+contract XHalfLifeLiner is ReentrancyGuard {
     using SafeMath for uint256;
 
     // The XDEX TOKEN!
@@ -18,11 +18,11 @@ contract XLinerStream is ReentrancyGuard {
     uint256 public nextStreamId = 1;
 
     modifier onlyCore() {
-        require(msg.sender == core, "XLinerStream: Not Authorized");
+        require(msg.sender == core, "XHalfLifeLiner: Not Authorized");
         _;
     }
 
-    // XLinerStream
+    // XHalfLife Liner Stream
     struct Stream {
         uint256 depositAmount;
         uint256 ratePerBlock;
