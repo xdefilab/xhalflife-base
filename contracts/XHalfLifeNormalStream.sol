@@ -219,18 +219,18 @@ contract XLinerStream is ReentrancyGuard {
         returns (Decimal result){
         
         Decimal a1=0.049867347, a2=0.0211410061, a3=0.0032776263, a4=0.0000380036, a5=0.0000488906, a6=0.000005383
-        Decimal y=x
-        x=fabs(x)
-        f = 1+x*(a1+x*(a2+x*(a3+x*(a4+x*(a5+x*a6)))))
-        f = f ** -16
-        if (y >=0 ){
-            f = 1 - 0.5 * f
+        Decimal y
+        y = x
+        x = x.fabs()
+        f = 1.add(x.mul(a1.add(x.mul(a2.add(x.mul(a3.add(x.mul(a4.add(x.mul(a5.add(x.mul(a6))))))))))))
+        f = f.pow(-16) // f**-16
+        if  ( y >= 0 ){
+            f = 1.sub(  f >> 1 )  // 1- f * 0.5
         }else{
-            f = 0.5 * f
+            f = f >> 1 // f * 0.5
         }
         return f
     }
-     
      
      
     function balanceOf(uint256 streamId, address who)
