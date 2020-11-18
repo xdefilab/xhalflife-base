@@ -9,18 +9,11 @@ contract XHalfLifeLiner is ReentrancyGuard {
 
     // The XDEX TOKEN!
     IERC20 public _xdex;
-    // core address.
-    address public core;
 
     /**
      * @notice Counter for new stream ids.
      */
     uint256 public nextStreamId = 1;
-
-    modifier onlyCore() {
-        require(msg.sender == core, "XHalfLifeLiner: Not Authorized");
-        _;
-    }
 
     // XHalfLife Liner Stream
     struct Stream {
@@ -339,11 +332,6 @@ contract XHalfLifeLiner is ReentrancyGuard {
         return true;
     }
 
-    function setCore(address _core) public onlyCore {
-        emit CoreTransferred(core, _core);
-        core = _core;
-    }
-
     // Safe xdex transfer function, just in case if rounding error causes pool to not have enough XDEX.
     function _safeXDexTransfer(address _to, uint256 _amount) internal {
         uint256 xdexBal = _xdex.balanceOf(address(this));
@@ -352,16 +340,5 @@ contract XHalfLifeLiner is ReentrancyGuard {
         } else {
             _xdex.transfer(_to, _amount);
         }
-    }
-
-    function _isContract(address _target) internal view returns (bool) {
-        if (_target == address(0)) {
-            return false;
-        }
-        uint256 size;
-        assembly {
-            size := extcodesize(_target)
-        }
-        return size > 0;
     }
 }
