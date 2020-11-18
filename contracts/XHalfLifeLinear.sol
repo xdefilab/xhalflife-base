@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract XHalfLifeLiner is ReentrancyGuard {
+contract XHalfLifeLinear is ReentrancyGuard {
     using SafeMath for uint256;
 
     // The XDEX TOKEN!
@@ -15,7 +15,7 @@ contract XHalfLifeLiner is ReentrancyGuard {
      */
     uint256 public nextStreamId = 1;
 
-    // XHalfLife Liner Stream
+    // XHalfLife Linear Stream
     struct Stream {
         uint256 depositAmount;
         uint256 ratePerBlock;
@@ -88,7 +88,6 @@ contract XHalfLifeLiner is ReentrancyGuard {
 
     constructor(IERC20 _xdexToken) public {
         _xdex = _xdexToken;
-        core = msg.sender;
     }
 
     /**

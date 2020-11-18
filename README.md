@@ -1,15 +1,15 @@
 # xhalflife-base
 
-## xHalfLifeLiner: Liner Decaying Money Stream Protocol
+## xHalfLifeLinear: Linear Decaying Money Stream Protocol
 
-xHalfLifeLiner has 4 parameters for money streaming:
+xHalfLifeLinear has 4 parameters for money streaming:
 
 -   recipient The address towards which the money is streamed.
 -   depositAmount The amount of money to be streamed.
 -   startBlock stream start block
 -   stopBlock stream end block
 
-xHalfLifeLiner is inspired by Sablier Protocol. 
+xHalfLifeLinear is inspired by Sablier Protocol. 
 
 ## xHalfLife: Exponentially Decaying Money Stream Protocol
 

@@ -1,21 +1,19 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const truffleAssert = require("truffle-assertions");
 const XDEX = artifacts.require('XDEX');
-const XHalfLifeLiner = artifacts.require('XHalfLifeLiner');
+const XHalfLifeLinear = artifacts.require('XHalfLifeLinear');
 
-contract('XHalfLifeLiner', ([alice, bob, carol, minter]) => {
+contract('XHalfLifeLinear', ([alice, bob, carol, minter]) => {
     beforeEach(async () => {
         this.xdex = await XDEX.new({ from: minter });
-        this.liner = await XHalfLifeLiner.new(this.xdex.address, { from: alice });
+        this.halflifelinear = await XHalfLifeLinear.new(this.xdex.address, { from: alice });
 
         await this.xdex.addMinter(minter, { from: minter });
     });
 
     it('should set correct state variables', async () => {
-        const linerCore = await this.liner.core();
         const xdexCore = await this.xdex.core();
 
-        assert.equal(linerCore, alice);
         assert.equal(xdexCore, minter);
     });
 
@@ -28,16 +26,16 @@ contract('XHalfLifeLiner', ([alice, bob, carol, minter]) => {
             const deposit = 2001;
             const recipient = bob;
 
-            await this.xdex.approve(this.liner.address, '3000', { from: alice });
+            await this.xdex.approve(this.halflifelinear.address, '3000', { from: alice });
             await truffleAssert.reverts(
-                this.liner.createStream(recipient, deposit, "30", "80", { from: alice }),
+                this.halflifelinear.createStream(recipient, deposit, "30", "80", { from: alice }),
                 truffleAssert.ErrorType.REVERT,
             );
         });
 
         it('the recipient should not be the caller itself', async () => {
             await truffleAssert.reverts(
-                this.liner.createStream(alice, 1000, "30", "80", { from: alice }),
+                this.halflifelinear.createStream(alice, 1000, "30", "80", { from: alice }),
                 truffleAssert.ErrorType.REVERT,
             );
         });
@@ -45,14 +43,14 @@ contract('XHalfLifeLiner', ([alice, bob, carol, minter]) => {
         it('the recipient should not be the 0 address', async () => {
             const recipient = "0x0000000000000000000000000000000000000000";
             await truffleAssert.reverts(
-                this.liner.createStream(recipient, 1000, "30", "80", { from: alice }),
+                this.halflifelinear.createStream(recipient, 1000, "30", "80", { from: alice }),
                 truffleAssert.ErrorType.REVERT,
             );
         });
 
         it('the recipient should not be the liner contract itself', async () => {
             await truffleAssert.reverts(
-                this.liner.createStream(this.liner.address, 1000, "30", "80", { from: alice }),
+                this.halflifelinear.createStream(this.halflifelinear.address, 1000, "30", "80", { from: alice }),
                 truffleAssert.ErrorType.REVERT,
             );
         });
@@ -61,28 +59,28 @@ contract('XHalfLifeLiner', ([alice, bob, carol, minter]) => {
             const deposit = 1001;
             const recipient = carol;
 
-            await this.xdex.approve(this.liner.address, '1000', { from: alice });
+            await this.xdex.approve(this.halflifelinear.address, '1000', { from: alice });
             await truffleAssert.reverts(
-                this.liner.createStream(recipient, deposit, "30", "80", { from: alice }),
+                this.halflifelinear.createStream(recipient, deposit, "30", "80", { from: alice }),
                 truffleAssert.ErrorType.REVERT,
             );
         });
 
         it('the start block should not after the stop block', async () => {
             await truffleAssert.reverts(
-                this.liner.createStream(bob, 1000, "80", "30", { from: alice }),
+                this.halflifelinear.createStream(bob, 1000, "80", "30", { from: alice }),
                 truffleAssert.ErrorType.REVERT,
             );
         });
 
         it('should create stream successfully', async () => {
-            await this.xdex.approve(this.liner.address, '1000', { from: alice });
+            await this.xdex.approve(this.halflifelinear.address, '1000', { from: alice });
 
             let deposit = 100;
             let startBlock = 50;
             let stopBlock = 100;
-            let result = await this.liner.createStream(bob, deposit, startBlock, stopBlock, { from: alice });
-            let stream = await this.liner.getStream(Number(result.logs[0].args.streamId));
+            let result = await this.halflifelinear.createStream(bob, deposit, startBlock, stopBlock, { from: alice });
+            let stream = await this.halflifelinear.getStream(Number(result.logs[0].args.streamId));
 
             //emits a stream event
             truffleAssert.eventEmitted(result, "StreamCreated");
@@ -95,100 +93,100 @@ contract('XHalfLifeLiner', ([alice, bob, carol, minter]) => {
             assert.equal(stream.remainingBalance, deposit);
 
             //token transfered to the contract
-            let balance = (await this.xdex.balanceOf(this.liner.address)).toString();
+            let balance = (await this.xdex.balanceOf(this.halflifelinear.address)).toString();
             assert.equal(balance, deposit);
 
             //increase next stream id
-            const nextStreamId = await this.liner.nextStreamId();
+            const nextStreamId = await this.halflifelinear.nextStreamId();
             assert.equal(nextStreamId, '2');
 
             //could withdraw all after stop bock
             await time.advanceBlockTo('105');
-            assert.equal((await this.liner.balanceOf('1', bob)).toString(), deposit);
+            assert.equal((await this.halflifelinear.balanceOf('1', bob)).toString(), deposit);
         });
 
         it('should return balance of the stream', async () => {
-            await this.xdex.approve(this.liner.address, '1000', { from: alice });
-            await this.liner.createStream(bob, '60', '140', '160', { from: alice });
+            await this.xdex.approve(this.halflifelinear.address, '1000', { from: alice });
+            await this.halflifelinear.createStream(bob, '60', '140', '160', { from: alice });
 
             await time.advanceBlockTo('135');
             //return sender balance of the stream
-            assert.equal((await this.liner.balanceOf('1', alice)).toString(), '60');
+            assert.equal((await this.halflifelinear.balanceOf('1', alice)).toString(), '60');
             //return recipient balance of the stream
-            assert.equal((await this.liner.balanceOf('1', bob)).toString(), '0');
+            assert.equal((await this.halflifelinear.balanceOf('1', bob)).toString(), '0');
             //return 0 for anyone else
-            assert.equal((await this.liner.balanceOf('1', carol)).toString(), '0');
+            assert.equal((await this.halflifelinear.balanceOf('1', carol)).toString(), '0');
 
             await time.advanceBlockTo('155');
             //return sender balance of the stream
-            assert.equal((await this.liner.balanceOf('1', alice)).toString(), '15');
+            assert.equal((await this.halflifelinear.balanceOf('1', alice)).toString(), '15');
             //return recipient balance of the stream
-            assert.equal((await this.liner.balanceOf('1', bob)).toString(), '45');
+            assert.equal((await this.halflifelinear.balanceOf('1', bob)).toString(), '45');
             //return 0 for anyone else
-            assert.equal((await this.liner.balanceOf('1', carol)).toString(), '0');
+            assert.equal((await this.halflifelinear.balanceOf('1', carol)).toString(), '0');
 
             await time.advanceBlockTo('160');
             //return sender balance of the stream
-            assert.equal((await this.liner.balanceOf('1', alice)).toString(), '0');
+            assert.equal((await this.halflifelinear.balanceOf('1', alice)).toString(), '0');
             //return recipient balance of the stream
-            assert.equal((await this.liner.balanceOf('1', bob)).toString(), '60');
+            assert.equal((await this.halflifelinear.balanceOf('1', bob)).toString(), '60');
             //return 0 for anyone else
-            assert.equal((await this.liner.balanceOf('1', carol)).toString(), '0');
+            assert.equal((await this.halflifelinear.balanceOf('1', carol)).toString(), '0');
         });
 
         it('should withdraw from the stream', async () => {
-            await this.xdex.approve(this.liner.address, '1000', { from: alice });
-            let streamResult = await this.liner.createStream(bob, '100', '200', '225', { from: alice });
+            await this.xdex.approve(this.halflifelinear.address, '1000', { from: alice });
+            let streamResult = await this.halflifelinear.createStream(bob, '100', '200', '225', { from: alice });
 
             await time.advanceBlockTo('195');
             await expectRevert(
-                this.liner.withdrawFromStream('1', '10', { from: carol }),
+                this.halflifelinear.withdrawFromStream('1', '10', { from: carol }),
                 'caller is not the sender or the recipient of the stream',
             );
 
             await time.advanceBlockTo('201');
             await expectRevert(
-                this.liner.withdrawFromStream('1', '10', { from: bob }),
+                this.halflifelinear.withdrawFromStream('1', '10', { from: bob }),
                 'amount exceeds the available balance',
             );
 
             await time.advanceBlockTo('210');
             assert.equal((await this.xdex.balanceOf(bob)).toString(), '0');
-            assert.equal((await this.liner.balanceOf('1', bob)).toString(), '40');// block 210
+            assert.equal((await this.halflifelinear.balanceOf('1', bob)).toString(), '40');// block 210
 
             //bob withdraw 20 from liner
-            let result = await this.liner.withdrawFromStream('1', '20', { from: bob });// block 211
+            let result = await this.halflifelinear.withdrawFromStream('1', '20', { from: bob });// block 211
 
             //emits a WithdrawFromStream event
             truffleAssert.eventEmitted(result, "WithdrawFromStream");
 
             //decreases bob's balance in stream
             assert.equal((await this.xdex.balanceOf(bob)).toString(), '20');// block 211
-            assert.equal((await this.liner.balanceOf('1', bob)).toString(), '24');
+            assert.equal((await this.halflifelinear.balanceOf('1', bob)).toString(), '24');
 
             //remainingBalance should be zero when withdrawn in full
             await time.advanceBlockTo('250');
-            await this.liner.withdrawFromStream('1', '80', { from: bob });
+            await this.halflifelinear.withdrawFromStream('1', '80', { from: bob });
             assert.equal((await this.xdex.balanceOf(bob)).toString(), '100');
-            let stream = await this.liner.getStream(Number(streamResult.logs[0].args.streamId));
+            let stream = await this.halflifelinear.getStream(Number(streamResult.logs[0].args.streamId));
             assert.equal(stream.remainingBalance.toString(), 0);
         });
 
         it('should cancel the stream', async () => {
             await expectRevert(
-                this.liner.cancelStream('10', { from: bob }),
+                this.halflifelinear.cancelStream('10', { from: bob }),
                 'stream does not exist',
             );
 
             await time.advanceBlockTo('299');
-            await this.xdex.approve(this.liner.address, '1000', { from: alice });
-            await this.liner.createStream(bob, '300', '350', '400', { from: alice });
+            await this.xdex.approve(this.halflifelinear.address, '1000', { from: alice });
+            await this.halflifelinear.createStream(bob, '300', '350', '400', { from: alice });
 
             assert.equal((await this.xdex.balanceOf(alice)).toString(), '1700');
             assert.equal((await this.xdex.balanceOf(bob)).toString(), '0');
 
             await time.advanceBlockTo('359');
-            let result = await this.liner.cancelStream('1', { from: bob });// block 360
+            let result = await this.halflifelinear.cancelStream('1', { from: bob });// block 360
 
             //emits a cancel event
             truffleAssert.eventEmitted(result, "StreamCanceled");

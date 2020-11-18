@@ -212,27 +212,26 @@ contract XLinerStream is ReentrancyGuard {
      * @param who The address for which to query the balance.
      * @return The total funds allocated to `who` as uint256.
      */
-     
-    function normalCDF(Decimal x) # 任何CDF可解析的概率分布都是可替换的，是个辅助函数
-        public
-        view
-        returns (Decimal result){
-        
-        Decimal a1=0.049867347, a2=0.0211410061, a3=0.0032776263, a4=0.0000380036, a5=0.0000488906, a6=0.000005383
-        Decimal y
-        y = x
-        x = x.fabs()
-        f = 1.add(x.mul(a1.add(x.mul(a2.add(x.mul(a3.add(x.mul(a4.add(x.mul(a5.add(x.mul(a6))))))))))))
-        f = f.pow(-16) // f**-16
-        if  ( y >= 0 ){
-            f = 1.sub(  f >> 1 )  // 1- f * 0.5
-        }else{
-            f = f >> 1 // f * 0.5
-        }
-        return f
-    }
-     
-     
+
+    // function normalCDF(Decimal x) # 任何CDF可解析的概率分布都是可替换的，是个辅助函数
+    //     public
+    //     view
+    //     returns (Decimal result){
+
+    //     Decimal a1=0.049867347, a2=0.0211410061, a3=0.0032776263, a4=0.0000380036, a5=0.0000488906, a6=0.000005383
+    //     Decimal y
+    //     y = x
+    //     x = x.fabs()
+    //     f = 1.add(x.mul(a1.add(x.mul(a2.add(x.mul(a3.add(x.mul(a4.add(x.mul(a5.add(x.mul(a6))))))))))))
+    //     f = f.pow(-16) // f**-16
+    //     if  ( y >= 0 ){
+    //         f = 1.sub(  f >> 1 )  // 1- f * 0.5
+    //     }else{
+    //         f = f >> 1 // f * 0.5
+    //     }
+    //     return f
+    // }
+
     function balanceOf(uint256 streamId, address who)
         public
         view
@@ -246,27 +245,25 @@ contract XLinerStream is ReentrancyGuard {
         }
 
         uint256 recipientBalance = 0;
-        
-        
-        Decimal thisBlockNumberMap = (block.number.sub(stream.startBlock)).div(stream.stopBlock - stream.startBlock).mul(6.0)-3.0
-        
-        
-        if (block.number <= stream.startBlock) {
-            recipientBalance = 0;
-        } else if (block.number < stream.stopBlock) {
-            recipientBalance = stream.depositAmount.mul(normalCDF(thisBlockNumberMap) - normalCDF(-3)).div(0.997)
-            
-            /*recipientBalance = block.number.sub(stream.startBlock).mul(
-                stream.ratePerBlock
-            );
-            */
-        } else {
-            recipientBalance = stream.depositAmount
-            /*recipientBalance = stream.stopBlock.sub(stream.startBlock).mul(
-                stream.ratePerBlock
-            );
-            */
-        }
+
+        // Decimal thisBlockNumberMap = (block.number.sub(stream.startBlock)).div(stream.stopBlock - stream.startBlock).mul(6.0)-3.0
+
+        // if (block.number <= stream.startBlock) {
+        //     recipientBalance = 0;
+        // } else if (block.number < stream.stopBlock) {
+        //     recipientBalance = stream.depositAmount.mul(normalCDF(thisBlockNumberMap) - normalCDF(-3)).div(0.997)
+
+        //     /*recipientBalance = block.number.sub(stream.startBlock).mul(
+        //         stream.ratePerBlock
+        //     );
+        //     */
+        // } else {
+        //     recipientBalance = stream.depositAmount
+        //     /*recipientBalance = stream.stopBlock.sub(stream.startBlock).mul(
+        //         stream.ratePerBlock
+        //     );
+        //     */
+        // }
 
         /*
          * If the stream `balance` does not equal `deposit`, it means there have been withdrawals.
