@@ -2,18 +2,17 @@ pragma solidity 0.5.17;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./XDEX.sol";
+import "./libs/address.sol";
 
 contract XHalfLife is ReentrancyGuard {
     using SafeMath for uint256;
+    using AddressHelper for address;
 
     uint256 constant ONE = 10**18;
     uint256 constant onePercent = 10**16;
     uint256 constant effectiveValue = 10**14; //effective withdrawable value: 0.0001
-
-    // The XDEX TOKEN!
-    XDEX public _xdex;
 
     /**
      * @notice Counter for new stream ids.
@@ -29,6 +28,7 @@ contract XHalfLife is ReentrancyGuard {
         uint256 kBlock;
         uint256 unlockRatio;
         uint256 lastRewardBlock;
+        address token; // ERC20 token address or 0x0 for Ether
         address recipient;
         address sender;
         bool isEntity;
@@ -59,6 +59,24 @@ contract XHalfLife is ReentrancyGuard {
         _;
     }
 
+    modifier createStreamPreflight(
+        address recipient,
+        uint256 depositAmount,
+        uint256 startBlock,
+        uint256 kBlock,
+        uint256 unlockRatio
+    ) {
+        require(recipient != address(0), "stream to the zero address");
+        require(recipient != address(this), "stream to the contract itself");
+        require(recipient != msg.sender, "stream to the caller");
+        require(depositAmount > 0, "depositAmount is zero");
+        require(startBlock >= block.number, "start block before block.number");
+        require(kBlock > 0, "k block is zero");
+        require(unlockRatio >= onePercent / 10, "unlockRatio must >= 0.1%");
+        require(unlockRatio < ONE, "unlockRatio must < 100%");
+        _;
+    }
+
     event StreamCreated(
         uint256 indexed streamId,
         address indexed sender,
@@ -85,19 +103,19 @@ contract XHalfLife is ReentrancyGuard {
 
     event StreamFunded(uint256 indexed streamId, uint256 amount);
 
-    constructor(XDEX _xdexToken) public {
-        _xdex = _xdexToken;
-    }
+    constructor() public {}
 
     /**
      * @notice Creates a new stream funded by `msg.sender` and paid towards `recipient`.
      * @dev Throws if paused.
+     *  Throws if the token is not a contract address
      *  Throws if the recipient is the zero address, the contract itself or the caller.
      *  Throws if the depositAmount is 0.
      *  Throws if the start block is before `block.number`.
      *  Throws if the rate calculation has a math error.
      *  Throws if the next stream id calculation has a math error.
      *  Throws if the contract is not allowed to transfer enough tokens.
+     * @param token The ERC20 token address
      * @param recipient The address towards which the money is streamed.
      * @param depositAmount The amount of money to be streamed.
      * @param startBlock stream start block
@@ -106,24 +124,35 @@ contract XHalfLife is ReentrancyGuard {
      * @return The uint256 id of the newly created stream.
      */
     function createStream(
+        address token,
         address recipient,
         uint256 depositAmount,
         uint256 startBlock,
         uint256 kBlock,
         uint256 unlockRatio
-    ) external nonReentrant returns (uint256) {
-        require(recipient != address(0), "stream to the zero address");
-        require(recipient != address(this), "stream to the contract itself");
-        require(recipient != msg.sender, "stream to the caller");
-        require(depositAmount > 0, "depositAmount is zero");
-        require(startBlock >= block.number, "start block before block.number");
-        require(kBlock > 0, "k block is zero");
-        require(unlockRatio >= onePercent / 10, "unlockRatio must >= 0.1%");
-        require(unlockRatio < ONE, "unlockRatio must < 100%");
+    )
+        external
+        nonReentrant
+        createStreamPreflight(
+            recipient,
+            depositAmount,
+            startBlock,
+            kBlock,
+            unlockRatio
+        )
+        returns (uint256)
+    {
+        require(token.isContract(), "not contract");
+        token.safeTransferFrom(msg.sender, address(this), depositAmount);
+        require(
+            IERC20(token).balanceOf(address(this)) >= depositAmount,
+            "deposit failed"
+        );
 
         /* Create and store the stream object. */
         uint256 streamId = nextStreamId;
         streams[streamId] = Stream({
+            token: token,
             remaining: depositAmount,
             withdrawable: 0,
             depositAmount: depositAmount,
@@ -136,15 +165,60 @@ contract XHalfLife is ReentrancyGuard {
             isEntity: true
         });
 
-        nextStreamId = nextStreamId.add(1);
-
-        _xdex.transferFrom(address(msg.sender), address(this), depositAmount);
+        nextStreamId++;
 
         emit StreamCreated(
             streamId,
             msg.sender,
             recipient,
             depositAmount,
+            startBlock,
+            kBlock,
+            unlockRatio
+        );
+        return streamId;
+    }
+
+    function createEtherStream(
+        address recipient,
+        uint256 startBlock,
+        uint256 kBlock,
+        uint256 unlockRatio
+    )
+        external
+        payable
+        createStreamPreflight(
+            recipient,
+            msg.value,
+            startBlock,
+            kBlock,
+            unlockRatio
+        )
+        nonReentrant
+        returns (uint256)
+    {
+        /* Create and store the stream object. */
+        uint256 streamId = nextStreamId;
+        streams[streamId] = Stream({
+            token: address(0x0),
+            remaining: msg.value,
+            withdrawable: 0,
+            depositAmount: msg.value,
+            startBlock: startBlock,
+            kBlock: kBlock,
+            unlockRatio: unlockRatio,
+            lastRewardBlock: startBlock,
+            recipient: recipient,
+            sender: msg.sender,
+            isEntity: true
+        });
+
+        nextStreamId++;
+        emit StreamCreated(
+            streamId,
+            msg.sender,
+            recipient,
+            msg.value,
             startBlock,
             kBlock,
             unlockRatio
@@ -164,7 +238,15 @@ contract XHalfLife is ReentrancyGuard {
      * @notice Returns the stream with all its properties.
      * @dev Throws if the id does not point to a valid stream.
      * @param streamId The id of the stream to query.
-     * @return The stream object.
+     * @return sender
+     * @return recipient
+     * @return depositAmount
+     * @return startBlock
+     * @return kBlock
+     * @return remaining
+     * @return withdrawable
+     * @return unlockRatio
+     * @return lastRewardBlock
      */
     function getStream(uint256 streamId)
         external
@@ -201,38 +283,36 @@ contract XHalfLife is ReentrancyGuard {
      */
     function fundStream(uint256 streamId, uint256 amount)
         public
+        payable
         nonReentrant
         streamExists(streamId)
         returns (bool)
     {
+        Stream storage stream = streams[streamId];
         require(
-            msg.sender == streams[streamId].sender,
+            msg.sender == stream.sender,
             "caller must be the sender of the stream"
         );
         require(amount > 0, "amount is zero");
+        if (stream.token == address(0x0)) {
+            require(amount == msg.value, "bad ether fund");
+        } else {
+            stream.token.safeTransferFrom(msg.sender, address(this), amount);
+        }
 
         (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
             streamId
         );
-
-        uint256 m = block.number.sub(streams[streamId].startBlock).mod(
-            streams[streamId].kBlock
-        );
+        uint256 m = block.number.sub(stream.startBlock).mod(stream.kBlock);
         uint256 lastRewardBlock = block.number.sub(m);
 
-        streams[streamId].lastRewardBlock = lastRewardBlock;
-        streams[streamId].remaining = remainingBalance.add(amount);
-        streams[streamId].withdrawable = recipientBalance;
+        stream.lastRewardBlock = lastRewardBlock;
+        stream.remaining = remainingBalance.add(amount);
+        stream.withdrawable = recipientBalance;
 
         //add funds to total deposit amount
-        streams[streamId].depositAmount = streams[streamId].depositAmount.add(
-            amount
-        );
-
-        _xdex.transferFrom(msg.sender, address(this), amount);
-
+        stream.depositAmount = stream.depositAmount.add(amount);
         emit StreamFunded(streamId, amount);
-
         return true;
     }
 
@@ -240,7 +320,8 @@ contract XHalfLife is ReentrancyGuard {
      * @notice Returns the available funds for the given stream id and address.
      * @dev Throws if the id does not point to a valid stream.
      * @param streamId The id of the stream for which to query the balance.
-     * @return The total funds allocated to `recipient` and `sender` as uint256.
+     * @return withdrawable The total funds allocated to `recipient` and `sender` as uint256.
+     * @return remaining The total funds allocated to `recipient` and `sender` as uint256.
      */
     function balanceOf(uint256 streamId)
         public
@@ -322,17 +403,22 @@ contract XHalfLife is ReentrancyGuard {
             "withdraw amount exceeds the available balance"
         );
 
-        uint256 m = block.number.sub(streams[streamId].startBlock).mod(
-            streams[streamId].kBlock
-        );
+        Stream storage stream = streams[streamId];
+
+        if (stream.token == address(0x0)) {
+            stream.recipient.safeTransferEther(amount);
+        } else {
+            stream.token.safeTransfer(stream.recipient, amount);
+        }
+
+        uint256 m = block.number.sub(stream.startBlock).mod(stream.kBlock);
         uint256 lastRewardBlock = block.number.sub(m);
 
-        streams[streamId].lastRewardBlock = lastRewardBlock;
-        streams[streamId].remaining = remainingBalance;
-        streams[streamId].withdrawable = recipientBalance.sub(amount);
+        stream.lastRewardBlock = lastRewardBlock;
+        stream.remaining = remainingBalance;
+        stream.withdrawable = recipientBalance.sub(amount);
 
-        _safeXDexTransfer(streams[streamId].recipient, amount);
-        emit WithdrawFromStream(streamId, streams[streamId].recipient, amount);
+        emit WithdrawFromStream(streamId, stream.recipient, amount);
         return true;
     }
 
@@ -358,10 +444,19 @@ contract XHalfLife is ReentrancyGuard {
         delete streams[streamId];
 
         if (withdrawable > 0) {
-            _safeXDexTransfer(stream.recipient, withdrawable);
+            if (stream.token == address(0x0)) {
+                stream.recipient.safeTransferEther(withdrawable);
+            } else {
+                stream.token.safeTransfer(stream.recipient, withdrawable);
+            }
         }
+
         if (remaining > 0) {
-            _safeXDexTransfer(stream.sender, remaining);
+            if (stream.token == address(0x0)) {
+                stream.sender.safeTransferEther(remaining);
+            } else {
+                stream.token.safeTransfer(stream.sender, remaining);
+            }
         }
 
         emit StreamCanceled(
@@ -376,15 +471,5 @@ contract XHalfLife is ReentrancyGuard {
 
     function getVersion() external pure returns (bytes32) {
         return bytes32("APOLLO");
-    }
-
-    // Safe xdex transfer function, just in case if rounding error causes pool to not have enough XDEX.
-    function _safeXDexTransfer(address _to, uint256 _amount) internal {
-        uint256 xdexBal = _xdex.balanceOf(address(this));
-        if (_amount > xdexBal) {
-            _xdex.transfer(_to, xdexBal);
-        } else {
-            _xdex.transfer(_to, _amount);
-        }
     }
 }
