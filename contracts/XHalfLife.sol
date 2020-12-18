@@ -63,8 +63,7 @@ contract XHalfLife is ReentrancyGuard {
         address recipient,
         uint256 depositAmount,
         uint256 startBlock,
-        uint256 kBlock,
-        uint256 unlockRatio
+        uint256 kBlock
     ) {
         require(recipient != address(0), "stream to the zero address");
         require(recipient != address(this), "stream to the contract itself");
@@ -72,8 +71,6 @@ contract XHalfLife is ReentrancyGuard {
         require(depositAmount > 0, "depositAmount is zero");
         require(startBlock >= block.number, "start block before block.number");
         require(kBlock > 0, "k block is zero");
-        require(unlockRatio >= onePercent / 10, "unlockRatio must >= 0.1%");
-        require(unlockRatio < ONE, "unlockRatio must < 100%");
         _;
     }
 
@@ -81,6 +78,7 @@ contract XHalfLife is ReentrancyGuard {
         uint256 indexed streamId,
         address indexed sender,
         address indexed recipient,
+        address token,
         uint256 depositAmount,
         uint256 startBlock,
         uint256 kBlock,
@@ -102,8 +100,6 @@ contract XHalfLife is ReentrancyGuard {
     );
 
     event StreamFunded(uint256 indexed streamId, uint256 amount);
-
-    constructor() public {}
 
     /**
      * @notice Creates a new stream funded by `msg.sender` and paid towards `recipient`.
@@ -133,15 +129,10 @@ contract XHalfLife is ReentrancyGuard {
     )
         external
         nonReentrant
-        createStreamPreflight(
-            recipient,
-            depositAmount,
-            startBlock,
-            kBlock,
-            unlockRatio
-        )
+        createStreamPreflight(recipient, depositAmount, startBlock, kBlock)
         returns (uint256)
     {
+        // TODO: verify unlockRatio
         require(token.isContract(), "not contract");
         token.safeTransferFrom(msg.sender, address(this), depositAmount);
         require(
@@ -171,6 +162,7 @@ contract XHalfLife is ReentrancyGuard {
             streamId,
             msg.sender,
             recipient,
+            token,
             depositAmount,
             startBlock,
             kBlock,
@@ -187,16 +179,12 @@ contract XHalfLife is ReentrancyGuard {
     )
         external
         payable
-        createStreamPreflight(
-            recipient,
-            msg.value,
-            startBlock,
-            kBlock,
-            unlockRatio
-        )
+        createStreamPreflight(recipient, msg.value, startBlock, kBlock)
         nonReentrant
         returns (uint256)
     {
+        require(unlockRatio >= 10**16, "unlockRatio must >= 0.1%");
+        require(unlockRatio < 10**18, "unlockRatio must < 100%");
         /* Create and store the stream object. */
         uint256 streamId = nextStreamId;
         streams[streamId] = Stream({
@@ -218,6 +206,7 @@ contract XHalfLife is ReentrancyGuard {
             streamId,
             msg.sender,
             recipient,
+            address(0x0),
             msg.value,
             startBlock,
             kBlock,
@@ -240,6 +229,7 @@ contract XHalfLife is ReentrancyGuard {
      * @param streamId The id of the stream to query.
      * @return sender
      * @return recipient
+     * @return token
      * @return depositAmount
      * @return startBlock
      * @return kBlock
@@ -255,6 +245,7 @@ contract XHalfLife is ReentrancyGuard {
         returns (
             address sender,
             address recipient,
+            address token,
             uint256 depositAmount,
             uint256 startBlock,
             uint256 kBlock,
@@ -264,15 +255,17 @@ contract XHalfLife is ReentrancyGuard {
             uint256 lastRewardBlock
         )
     {
-        sender = streams[streamId].sender;
-        recipient = streams[streamId].recipient;
-        depositAmount = streams[streamId].depositAmount;
-        startBlock = streams[streamId].startBlock;
-        kBlock = streams[streamId].kBlock;
-        remaining = streams[streamId].remaining;
-        withdrawable = streams[streamId].withdrawable;
-        unlockRatio = streams[streamId].unlockRatio;
-        lastRewardBlock = streams[streamId].lastRewardBlock;
+        Stream memory stream = streams[streamId];
+        sender = stream.sender;
+        recipient = stream.recipient;
+        token = stream.token;
+        depositAmount = stream.depositAmount;
+        startBlock = stream.startBlock;
+        kBlock = stream.kBlock;
+        remaining = stream.remaining;
+        withdrawable = stream.withdrawable;
+        unlockRatio = stream.unlockRatio;
+        lastRewardBlock = stream.lastRewardBlock;
     }
 
     /**
