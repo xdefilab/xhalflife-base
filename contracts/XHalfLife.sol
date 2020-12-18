@@ -2,17 +2,13 @@ pragma solidity 0.5.17;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./libs/address.sol";
+import "./interfaces/ERC20.sol";
 
 contract XHalfLife is ReentrancyGuard {
     using SafeMath for uint256;
     using AddressHelper for address;
-
-    uint256 constant ONE = 10**18;
-    uint256 constant onePercent = 10**16;
-    uint256 constant effectiveValue = 10**14; //effective withdrawable value: 0.0001
 
     /**
      * @notice Counter for new stream ids.
@@ -27,6 +23,7 @@ contract XHalfLife is ReentrancyGuard {
         uint256 startBlock;
         uint256 kBlock;
         uint256 unlockRatio;
+        uint256 denom;
         uint256 lastRewardBlock;
         address token; // ERC20 token address or 0x0 for Ether
         address recipient;
@@ -132,32 +129,32 @@ contract XHalfLife is ReentrancyGuard {
         createStreamPreflight(recipient, depositAmount, startBlock, kBlock)
         returns (uint256)
     {
-        // TODO: verify unlockRatio
         require(token.isContract(), "not contract");
         token.safeTransferFrom(msg.sender, address(this), depositAmount);
-        require(
-            IERC20(token).balanceOf(address(this)) >= depositAmount,
-            "deposit failed"
-        );
 
-        /* Create and store the stream object. */
         uint256 streamId = nextStreamId;
-        streams[streamId] = Stream({
-            token: token,
-            remaining: depositAmount,
-            withdrawable: 0,
-            depositAmount: depositAmount,
-            startBlock: startBlock,
-            kBlock: kBlock,
-            unlockRatio: unlockRatio,
-            lastRewardBlock: startBlock,
-            recipient: recipient,
-            sender: msg.sender,
-            isEntity: true
-        });
+        {
+            uint256 denom = 10**uint256(IERC20(token).decimals());
+            require(denom >= 10**6, "token decimal too low");
+            require(unlockRatio < denom, "unlockRatio must < 100%");
+            require(unlockRatio >= denom.div(100), "unlockRatio must >= 0.1%");
+            streams[streamId] = Stream({
+                token: token,
+                remaining: depositAmount,
+                withdrawable: 0,
+                depositAmount: depositAmount,
+                startBlock: startBlock,
+                kBlock: kBlock,
+                unlockRatio: unlockRatio,
+                denom: denom,
+                lastRewardBlock: startBlock,
+                recipient: recipient,
+                sender: msg.sender,
+                isEntity: true
+            });
+        }
 
-        nextStreamId++;
-
+        nextStreamId = nextStreamId.add(1);
         emit StreamCreated(
             streamId,
             msg.sender,
@@ -195,13 +192,15 @@ contract XHalfLife is ReentrancyGuard {
             startBlock: startBlock,
             kBlock: kBlock,
             unlockRatio: unlockRatio,
+            denom: 10**18,
             lastRewardBlock: startBlock,
             recipient: recipient,
             sender: msg.sender,
             isEntity: true
         });
 
-        nextStreamId++;
+        nextStreamId = nextStreamId.add(1);
+
         emit StreamCreated(
             streamId,
             msg.sender,
@@ -335,7 +334,7 @@ contract XHalfLife is ReentrancyGuard {
         uint256 w = 0;
         uint256 n = block.number.sub(stream.lastRewardBlock).div(stream.kBlock);
         for (uint256 i = 0; i < n; i++) {
-            uint256 reward = r.mul(stream.unlockRatio).div(ONE);
+            uint256 reward = r.mul(stream.unlockRatio).div(stream.denom);
             w = w.add(reward);
             r = r.sub(reward);
         }
@@ -351,6 +350,9 @@ contract XHalfLife is ReentrancyGuard {
             stream.remaining.add(stream.withdrawable) <= stream.depositAmount,
             "balanceOf: remaining or withdrawable amount is bad"
         );
+
+        // 0.0001 TOKEN
+        uint256 effectiveValue = stream.denom.div(10**4);
 
         if (stream.withdrawable >= effectiveValue) {
             withdrawable = stream.withdrawable;
@@ -382,6 +384,11 @@ contract XHalfLife is ReentrancyGuard {
         onlySenderOrRecipient(streamId)
         returns (bool)
     {
+        Stream storage stream = streams[streamId];
+
+        // 0.0001 TOKEN
+        uint256 effectiveValue = stream.denom.div(10**4);
+
         require(
             amount >= effectiveValue,
             "amount is zero or little than the effective withdraw value"
@@ -395,8 +402,6 @@ contract XHalfLife is ReentrancyGuard {
             recipientBalance >= amount,
             "withdraw amount exceeds the available balance"
         );
-
-        Stream storage stream = streams[streamId];
 
         if (stream.token == address(0x0)) {
             stream.recipient.safeTransferEther(amount);
