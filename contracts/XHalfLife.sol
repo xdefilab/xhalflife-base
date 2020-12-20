@@ -23,7 +23,7 @@ contract XHalfLife is ReentrancyGuard {
         uint256 startBlock;
         uint256 kBlock;
         uint256 unlockRatio;
-        uint256 denom;
+        uint256 denom; // one readable coin represent
         uint256 lastRewardBlock;
         address token; // ERC20 token address or 0x0 for Ether
         address recipient;
@@ -56,6 +56,12 @@ contract XHalfLife is ReentrancyGuard {
         _;
     }
 
+    /**
+     * @dev Throws if the caller is not the sender of the recipient of the stream.
+     *  Throws if the recipient is the zero address, the contract itself or the caller.
+     *  Throws if the depositAmount is 0.
+     *  Throws if the start block is before `block.number`.
+     */
     modifier createStreamPreflight(
         address recipient,
         uint256 depositAmount,
@@ -125,7 +131,6 @@ contract XHalfLife is ReentrancyGuard {
         uint256 unlockRatio
     )
         external
-        nonReentrant
         createStreamPreflight(recipient, depositAmount, startBlock, kBlock)
         returns (uint256)
     {
@@ -168,6 +173,21 @@ contract XHalfLife is ReentrancyGuard {
         return streamId;
     }
 
+    /**
+     * @notice Creates a new ether stream funded by `msg.sender` and paid towards `recipient`.
+     * @dev Throws if paused.
+     *  Throws if the recipient is the zero address, the contract itself or the caller.
+     *  Throws if the depositAmount is 0.
+     *  Throws if the start block is before `block.number`.
+     *  Throws if the rate calculation has a math error.
+     *  Throws if the next stream id calculation has a math error.
+     *  Throws if the contract is not allowed to transfer enough tokens.
+     * @param recipient The address towards which the money is streamed.
+     * @param startBlock stream start block
+     * @param kBlock unlock every k blocks
+     * @param unlockRatio unlock ratio from remaining balanceß
+     * @return The uint256 id of the newly created stream.
+     */
     function createEtherStream(
         address recipient,
         uint256 startBlock,
@@ -212,14 +232,6 @@ contract XHalfLife is ReentrancyGuard {
             unlockRatio
         );
         return streamId;
-    }
-
-    /**
-     * @notice If the given streamId is valid;
-     * @param streamId The id of the stream to query.
-     */
-    function isStream(uint256 streamId) external view returns (bool) {
-        return streams[streamId].isEntity;
     }
 
     /**
@@ -292,9 +304,8 @@ contract XHalfLife is ReentrancyGuard {
             stream.token.safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
-            streamId
-        );
+        (uint256 recipientBalance, uint256 remainingBalance) =
+            balanceOf(streamId);
         uint256 m = block.number.sub(stream.startBlock).mod(stream.kBlock);
         uint256 lastRewardBlock = block.number.sub(m);
 
@@ -394,9 +405,8 @@ contract XHalfLife is ReentrancyGuard {
             "amount is zero or little than the effective withdraw value"
         );
 
-        (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
-            streamId
-        );
+        (uint256 recipientBalance, uint256 remainingBalance) =
+            balanceOf(streamId);
 
         require(
             recipientBalance >= amount,
