@@ -14,3 +14,4 @@ crytic-export
 mcore_*
 .DS_Store
 .env
+.vscode
