@@ -300,7 +300,8 @@ contract XHalfLifeLinear is ReentrancyGuard {
          * streamed until now.
          */
         if (stream.depositAmount > stream.remainingBalance) {
-            uint256 withdrawalAmount = stream.depositAmount.sub(stream.remainingBalance);
+            uint256 withdrawalAmount =
+                stream.depositAmount.sub(stream.remainingBalance);
             /* `withdrawalAmount` cannot and should not be bigger than `recipientBalance`. */
             recipientBalance = recipientBalance.sub(withdrawalAmount);
         }
@@ -310,7 +311,8 @@ contract XHalfLifeLinear is ReentrancyGuard {
         }
         if (who == stream.sender) {
             /* `recipientBalance` cannot and should not be bigger than `remainingBalance`. */
-            uint256 senderBalance = stream.remainingBalance.sub(recipientBalance);
+            uint256 senderBalance =
+                stream.remainingBalance.sub(recipientBalance);
             return senderBalance;
         }
         return 0;
