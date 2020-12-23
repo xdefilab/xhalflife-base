@@ -243,6 +243,7 @@ contract XHalfLifeLinear is ReentrancyGuard {
         view
         streamExists(streamId)
         returns (
+            address token,
             address sender,
             address recipient,
             uint256 depositAmount,
@@ -253,6 +254,7 @@ contract XHalfLifeLinear is ReentrancyGuard {
         )
     {
         Stream memory stream = streams[streamId];
+        token = stream.token;
         sender = stream.sender;
         recipient = stream.recipient;
         depositAmount = stream.depositAmount;

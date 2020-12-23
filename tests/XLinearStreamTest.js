@@ -20,28 +20,6 @@ contract("XHalfLifeLinear", ([alice, bob, carol, minter]) => {
       await this.xdex.mint(alice, "2000", { from: minter });
     });
 
-    it("the token should valid", async () => {
-      const deposit = 2001;
-      const recipient = bob;
-
-      await this.xdex.approve(this.halflifelinear.address, "3000", {
-        from: alice,
-      });
-      await truffleAssert.reverts(
-        this.halflifelinear.createStream(
-          "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
-          recipient,
-          deposit,
-          "30",
-          "80",
-          {
-            from: alice,
-          }
-        ),
-        truffleAssert.ErrorType.REVERT
-      );
-    });
-
     it("the sender should have enough tokens", async () => {
       const deposit = 2001;
       const recipient = bob;
@@ -66,9 +44,16 @@ contract("XHalfLifeLinear", ([alice, bob, carol, minter]) => {
 
     it("the recipient should not be the caller itself", async () => {
       await truffleAssert.reverts(
-        this.halflifelinear.createStream(alice, 1000, "30", "80", {
-          from: alice,
-        }),
+        this.halflifelinear.createStream(
+          this.xdex.address,
+          alice,
+          1000,
+          "30",
+          "80",
+          {
+            from: alice,
+          }
+        ),
         truffleAssert.ErrorType.REVERT
       );
     });
@@ -93,6 +78,7 @@ contract("XHalfLifeLinear", ([alice, bob, carol, minter]) => {
     it("the recipient should not be the liner contract itself", async () => {
       await truffleAssert.reverts(
         this.halflifelinear.createStream(
+          this.xdex.address,
           this.halflifelinear.address,
           1000,
           "30",
@@ -164,6 +150,7 @@ contract("XHalfLifeLinear", ([alice, bob, carol, minter]) => {
       //emits a stream event
       truffleAssert.eventEmitted(result, "StreamCreated");
 
+      assert.equal(stream.token, this.xdex.address);
       assert.equal(stream.sender, alice);
       assert.equal(stream.recipient, bob);
       assert.equal(stream.depositAmount, deposit);

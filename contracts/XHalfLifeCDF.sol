@@ -237,6 +237,7 @@ contract XHalfLifeCDF is ReentrancyGuard {
         view
         streamExists(streamId)
         returns (
+            address token,
             address sender,
             address recipient,
             uint256 depositAmount,
@@ -245,12 +246,14 @@ contract XHalfLifeCDF is ReentrancyGuard {
             uint256 remainingBalance
         )
     {
-        sender = streams[streamId].sender;
-        recipient = streams[streamId].recipient;
-        depositAmount = streams[streamId].depositAmount;
-        startBlock = streams[streamId].startBlock;
-        stopBlock = streams[streamId].stopBlock;
-        remainingBalance = streams[streamId].remainingBalance;
+        Stream memory stream = streams[streamId];
+        sender = stream.sender;
+        token = stream.token;
+        recipient = stream.recipient;
+        depositAmount = stream.depositAmount;
+        startBlock = stream.startBlock;
+        stopBlock = stream.stopBlock;
+        remainingBalance = stream.remainingBalance;
     }
 
     function normalCDF(uint256 x, bool positive) public view returns (uint256) {
