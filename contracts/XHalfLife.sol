@@ -197,7 +197,6 @@ contract XHalfLife is ReentrancyGuard {
         external
         payable
         createStreamPreflight(recipient, msg.value, startBlock, kBlock)
-        nonReentrant
         returns (uint256)
     {
         require(unlockRatio >= 10**16, "unlockRatio must >= 0.1%");
