@@ -21,6 +21,28 @@ contract("XHalflife", ([alice, bob, carol, minter]) => {
       await this.xdex.mint(alice, "200000000000000000000", { from: alice });
     });
 
+    it("the token should valid", async () => {
+      const deposit = 2001;
+      const recipient = bob;
+
+      await this.xdex.approve(this.halflifelinear.address, "3000", {
+        from: alice,
+      });
+      await truffleAssert.reverts(
+        this.halflifelinear.createStream(
+          "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+          recipient,
+          deposit,
+          "30",
+          "80",
+          {
+            from: alice,
+          }
+        ),
+        truffleAssert.ErrorType.REVERT
+      );
+    });
+
     it("the token address should valid", async () => {
       await truffleAssert.reverts(
         this.halflife.createStream(
