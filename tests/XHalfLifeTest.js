@@ -21,28 +21,6 @@ contract("XHalflife", ([alice, bob, carol, minter]) => {
       await this.xdex.mint(alice, "200000000000000000000", { from: alice });
     });
 
-    it("the token should valid", async () => {
-      const deposit = 2001;
-      const recipient = bob;
-
-      await this.xdex.approve(this.halflifelinear.address, "3000", {
-        from: alice,
-      });
-      await truffleAssert.reverts(
-        this.halflifelinear.createStream(
-          "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
-          recipient,
-          deposit,
-          "30",
-          "80",
-          {
-            from: alice,
-          }
-        ),
-        truffleAssert.ErrorType.REVERT
-      );
-    });
-
     it("the token address should valid", async () => {
       await truffleAssert.reverts(
         this.halflife.createStream(
@@ -146,24 +124,6 @@ contract("XHalflife", ([alice, bob, carol, minter]) => {
       );
     });
 
-    it("the start block should not after the stop block", async () => {
-      const unlockRatio = "100000000000000000"; //0.1
-      await truffleAssert.reverts(
-        this.halflife.createStream(
-          this.xdex.address,
-          bob,
-          1000,
-          "80",
-          "10",
-          unlockRatio,
-          {
-            from: alice,
-          }
-        ),
-        truffleAssert.ErrorType.REVERT
-      );
-    });
-
     it("should create stream successfully", async () => {
       let deposit = 100 * ONE;
       await this.xdex.approve(this.halflife.address, deposit.toString(), {
@@ -189,6 +149,7 @@ contract("XHalflife", ([alice, bob, carol, minter]) => {
       //emits a stream event
       truffleAssert.eventEmitted(result, "StreamCreated");
 
+      assert.equal(stream.token, this.xdex.address);
       assert.equal(stream.sender, alice);
       assert.equal(stream.recipient, bob);
       assert.equal(stream.depositAmount, deposit);
