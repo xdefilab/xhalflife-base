@@ -199,7 +199,7 @@ contract XHalfLife is ReentrancyGuard {
         createStreamPreflight(recipient, msg.value, startBlock, kBlock)
         returns (uint256)
     {
-        require(unlockRatio >= 10**16, "unlockRatio must >= 0.1%");
+        require(unlockRatio >= 10**15, "unlockRatio must >= 0.1%");
         require(unlockRatio < 10**18, "unlockRatio must < 100%");
         /* Create and store the stream object. */
         uint256 streamId = nextStreamId;
