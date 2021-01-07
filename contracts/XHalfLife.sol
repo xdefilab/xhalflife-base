@@ -204,7 +204,7 @@ contract XHalfLife is ReentrancyGuard {
         /* Create and store the stream object. */
         uint256 streamId = nextStreamId;
         streams[streamId] = Stream({
-            token: address(0x0),
+            token: AddressHelper.ethAddress(),
             remaining: msg.value,
             withdrawable: 0,
             depositAmount: msg.value,
@@ -224,7 +224,7 @@ contract XHalfLife is ReentrancyGuard {
             streamId,
             msg.sender,
             recipient,
-            address(0x0),
+            AddressHelper.ethAddress(),
             msg.value,
             startBlock,
             kBlock,
@@ -297,7 +297,7 @@ contract XHalfLife is ReentrancyGuard {
             "caller must be the sender of the stream"
         );
         require(amount > 0, "amount is zero");
-        if (stream.token == address(0x0)) {
+        if (stream.token == AddressHelper.ethAddress()) {
             require(amount == msg.value, "bad ether fund");
         } else {
             stream.token.safeTransferFrom(msg.sender, address(this), amount);
@@ -412,7 +412,7 @@ contract XHalfLife is ReentrancyGuard {
             "withdraw amount exceeds the available balance"
         );
 
-        if (stream.token == address(0x0)) {
+        if (stream.token == AddressHelper.ethAddress()) {
             stream.recipient.safeTransferEther(amount);
         } else {
             stream.token.safeTransfer(stream.recipient, amount);
@@ -451,7 +451,7 @@ contract XHalfLife is ReentrancyGuard {
         delete streams[streamId];
 
         if (withdrawable > 0) {
-            if (stream.token == address(0x0)) {
+            if (stream.token == AddressHelper.ethAddress()) {
                 stream.recipient.safeTransferEther(withdrawable);
             } else {
                 stream.token.safeTransfer(stream.recipient, withdrawable);
@@ -459,7 +459,7 @@ contract XHalfLife is ReentrancyGuard {
         }
 
         if (remaining > 0) {
-            if (stream.token == address(0x0)) {
+            if (stream.token == AddressHelper.ethAddress()) {
                 stream.sender.safeTransferEther(remaining);
             } else {
                 stream.token.safeTransfer(stream.sender, remaining);
