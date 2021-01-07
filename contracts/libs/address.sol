@@ -8,8 +8,9 @@ library AddressHelper {
         uint256 value
     ) internal {
         // bytes4(keccak256(bytes('transfer(address,uint256)')));
-        (bool success, bytes memory data) =
-            token.call(abi.encodeWithSelector(0xa9059cbb, to, value));
+        (bool success, bytes memory data) = token.call(
+            abi.encodeWithSelector(0xa9059cbb, to, value)
+        );
         require(
             success && (data.length == 0 || abi.decode(data, (bool))),
             "TRANSFER_FAILED"
@@ -23,8 +24,9 @@ library AddressHelper {
         uint256 value
     ) internal {
         // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
-        (bool success, bytes memory data) =
-            token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
+        (bool success, bytes memory data) = token.call(
+            abi.encodeWithSelector(0x23b872dd, from, to, value)
+        );
         require(
             success && (data.length == 0 || abi.decode(data, (bool))),
             "TRANSFER_FROM_FAILED"
@@ -46,10 +48,10 @@ library AddressHelper {
         }
         return size > 0;
     }
-    
+
     /**
-    * @dev returns the address used within the protocol to identify ETH
-    * @return the address assigned to ETH
+     * @dev returns the address used within the protocol to identify ETH
+     * @return the address assigned to ETH
      */
     function ethAddress() internal pure returns (address) {
         return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;

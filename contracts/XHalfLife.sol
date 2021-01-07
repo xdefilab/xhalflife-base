@@ -303,8 +303,9 @@ contract XHalfLife is ReentrancyGuard {
             stream.token.safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        (uint256 recipientBalance, uint256 remainingBalance) =
-            balanceOf(streamId);
+        (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
+            streamId
+        );
         uint256 m = block.number.sub(stream.startBlock).mod(stream.kBlock);
         uint256 lastRewardBlock = block.number.sub(m);
 
@@ -404,8 +405,9 @@ contract XHalfLife is ReentrancyGuard {
             "amount is zero or little than the effective withdraw value"
         );
 
-        (uint256 recipientBalance, uint256 remainingBalance) =
-            balanceOf(streamId);
+        (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
+            streamId
+        );
 
         require(
             recipientBalance >= amount,
