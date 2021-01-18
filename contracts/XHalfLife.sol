@@ -51,18 +51,6 @@ contract XHalfLife is ReentrancyGuard {
 
     /**
      * @dev Throws if the caller is not the sender of the recipient of the stream.
-     */
-    modifier onlySenderOrRecipient(uint256 streamId) {
-        require(
-            msg.sender == streams[streamId].sender ||
-                msg.sender == streams[streamId].recipient,
-            "caller is not the sender or the recipient of the stream"
-        );
-        _;
-    }
-
-    /**
-     * @dev Throws if the caller is not the sender of the recipient of the stream.
      *  Throws if the recipient is the zero address, the contract itself or the caller.
      *  Throws if the depositAmount is 0.
      *  Throws if the start block is before `block.number`.
@@ -148,6 +136,8 @@ contract XHalfLife is ReentrancyGuard {
             require(denom >= 10**6, "token decimal too low");
             require(unlockRatio < denom, "unlockRatio must < 100%");
             require(unlockRatio >= denom.div(1000), "unlockRatio must >= 0.1%");
+
+            require(depositAmount >= denom.div(10**4), "deposit too small");
 
             streams[streamId] = Stream({
                 token: token,
@@ -400,10 +390,14 @@ contract XHalfLife is ReentrancyGuard {
         external
         nonReentrant
         streamExists(streamId)
-        onlySenderOrRecipient(streamId)
         returns (bool)
     {
         Stream storage stream = streams[streamId];
+
+        require(
+            msg.sender == stream.recipient,
+            "caller must be the recipient of the stream"
+        );
 
         require(
             amount >= effectiveValues[streamId],
@@ -447,11 +441,16 @@ contract XHalfLife is ReentrancyGuard {
         external
         nonReentrant
         streamExists(streamId)
-        onlySenderOrRecipient(streamId)
         returns (bool)
     {
         Stream memory stream = streams[streamId];
         (uint256 withdrawable, uint256 remaining) = balanceOf(streamId);
+
+        require(
+            msg.sender == streams[streamId].sender ||
+                msg.sender == streams[streamId].recipient,
+            "caller is not the sender or the recipient of the stream"
+        );
 
         //save gas
         delete streams[streamId];
