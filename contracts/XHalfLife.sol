@@ -15,6 +15,11 @@ contract XHalfLife is ReentrancyGuard {
      */
     uint256 public nextStreamId = 1;
 
+    /**
+     * @notice key: stream id, value: minimum effective value(0.0001 TOKEN)
+     */
+    mapping(uint256 => uint256) public effectiveValues;
+
     // halflife stream
     struct Stream {
         uint256 depositAmount;
@@ -143,6 +148,7 @@ contract XHalfLife is ReentrancyGuard {
             require(denom >= 10**6, "token decimal too low");
             require(unlockRatio < denom, "unlockRatio must < 100%");
             require(unlockRatio >= denom.div(1000), "unlockRatio must >= 0.1%");
+
             streams[streamId] = Stream({
                 token: token,
                 remaining: depositAmount,
@@ -157,6 +163,9 @@ contract XHalfLife is ReentrancyGuard {
                 sender: msg.sender,
                 isEntity: true
             });
+
+            // 0.0001 TOKEN
+            effectiveValues[streamId] = denom.div(10**4);
         }
 
         nextStreamId = nextStreamId.add(1);
@@ -296,16 +305,15 @@ contract XHalfLife is ReentrancyGuard {
             msg.sender == stream.sender,
             "caller must be the sender of the stream"
         );
-        require(amount > 0, "amount is zero");
+        require(amount > effectiveValues[streamId], "amount not effective");
         if (stream.token == AddressHelper.ethAddress()) {
             require(amount == msg.value, "bad ether fund");
         } else {
             stream.token.safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
-            streamId
-        );
+        (uint256 recipientBalance, uint256 remainingBalance) =
+            balanceOf(streamId);
         uint256 m = block.number.sub(stream.startBlock).mod(stream.kBlock);
         uint256 lastRewardBlock = block.number.sub(m);
 
@@ -348,6 +356,9 @@ contract XHalfLife is ReentrancyGuard {
             uint256 reward = r.mul(stream.unlockRatio).div(stream.denom);
             w = w.add(reward);
             r = r.sub(reward);
+            if (r < effectiveValues[streamId]) {
+                break;
+            }
         }
 
         stream.remaining = r;
@@ -362,16 +373,13 @@ contract XHalfLife is ReentrancyGuard {
             "balanceOf: remaining or withdrawable amount is bad"
         );
 
-        // 0.0001 TOKEN
-        uint256 effectiveValue = stream.denom.div(10**4);
-
-        if (stream.withdrawable >= effectiveValue) {
+        if (stream.withdrawable >= effectiveValues[streamId]) {
             withdrawable = stream.withdrawable;
         } else {
             withdrawable = 0;
         }
 
-        if (stream.remaining >= effectiveValue) {
+        if (stream.remaining >= effectiveValues[streamId]) {
             remaining = stream.remaining;
         } else {
             remaining = 0;
@@ -397,17 +405,13 @@ contract XHalfLife is ReentrancyGuard {
     {
         Stream storage stream = streams[streamId];
 
-        // 0.0001 TOKEN
-        uint256 effectiveValue = stream.denom.div(10**4);
-
         require(
-            amount >= effectiveValue,
-            "amount is zero or little than the effective withdraw value"
+            amount >= effectiveValues[streamId],
+            "amount is zero or not effective"
         );
 
-        (uint256 recipientBalance, uint256 remainingBalance) = balanceOf(
-            streamId
-        );
+        (uint256 recipientBalance, uint256 remainingBalance) =
+            balanceOf(streamId);
 
         require(
             recipientBalance >= amount,
