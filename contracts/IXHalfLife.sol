@@ -34,12 +34,12 @@ interface IXHalfLife {
         );
 
     function fundStream(uint256 streamId, uint256 amount)
-        public
+        external
         payable
         returns (bool);
 
     function balanceOf(uint256 streamId)
-        public
+        external
         view
         returns (uint256 withdrawable, uint256 remaining);
 
