@@ -22,15 +22,15 @@ contract XHalfLife is ReentrancyGuard {
 
     // halflife stream
     struct Stream {
-        uint256 depositAmount;
-        uint256 remaining; //un-withdrawable balance
-        uint256 withdrawable; //withdrawable balance
+        uint256 depositAmount; // total deposited amount, must >= 0.0001 TOKEN
+        uint256 remaining; // un-withdrawable balance
+        uint256 withdrawable; // withdrawable balance
         uint256 startBlock;
         uint256 kBlock;
-        uint256 unlockRatio;
+        uint256 unlockRatio; // must be between [1-999], which means 0.1% to 99.9%
         uint256 denom; // one readable coin represent
         uint256 lastRewardBlock;
-        address token; // ERC20 token address or 0x0 for Ether
+        address token; // ERC20 token address or 0xEe for Ether
         address recipient;
         address sender;
         bool isEntity;
@@ -112,7 +112,8 @@ contract XHalfLife is ReentrancyGuard {
      * @param depositAmount The amount of money to be streamed.
      * @param startBlock stream start block
      * @param kBlock unlock every k blocks
-     * @param unlockRatio unlock ratio from remaining balanceß
+     * @param unlockRatio unlock ratio from remaining balance,
+     *                    value must be between [1-1000), which means 0.1% to 99.9%
      * @return The uint256 id of the newly created stream.
      */
     function createStream(
@@ -130,14 +131,21 @@ contract XHalfLife is ReentrancyGuard {
         require(token.isContract(), "not contract");
         token.safeTransferFrom(msg.sender, address(this), depositAmount);
 
+        //value must be between [1-999], which means 0.1% to 99.9%
+        require(unlockRatio < 1000, "unlockRatio must < 1000");
+        require(unlockRatio > 0, "unlockRatio must > 0");
+
         uint256 streamId = nextStreamId;
         {
             uint256 denom = 10**uint256(IERC20(token).decimals());
-            require(denom >= 10**6, "token decimal too low");
-            require(unlockRatio < denom, "unlockRatio must < 100%");
-            require(unlockRatio >= denom.div(1000), "unlockRatio must >= 0.1%");
+            require(denom >= 10**6, "token decimal too small");
 
-            require(depositAmount >= denom.div(10**4), "deposit too small");
+            // 0.0001 TOKEN
+            effectiveValues[streamId] = denom.div(10**4);
+            require(
+                depositAmount >= effectiveValues[streamId],
+                "deposit too small"
+            );
 
             streams[streamId] = Stream({
                 token: token,
@@ -153,9 +161,6 @@ contract XHalfLife is ReentrancyGuard {
                 sender: msg.sender,
                 isEntity: true
             });
-
-            // 0.0001 TOKEN
-            effectiveValues[streamId] = denom.div(10**4);
         }
 
         nextStreamId = nextStreamId.add(1);
@@ -343,7 +348,7 @@ contract XHalfLife is ReentrancyGuard {
         uint256 w = 0;
         uint256 n = block.number.sub(stream.lastRewardBlock).div(stream.kBlock);
         for (uint256 i = 0; i < n; i++) {
-            uint256 reward = r.mul(stream.unlockRatio).div(stream.denom);
+            uint256 reward = r.mul(stream.unlockRatio).div(1000);
             w = w.add(reward);
             r = r.sub(reward);
             if (r < effectiveValues[streamId]) {
