@@ -3,9 +3,12 @@ pragma solidity 0.5.17;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import "./libs/address.sol";
-import "./interfaces/ERC20.sol";
+import "./lib/AddressHelper.sol";
+import "./interfaces/IERC20.sol";
 
+/**
+ * @notice Deprecated!
+ */
 contract XHalfLifeLinear is ReentrancyGuard {
     using SafeMath for uint256;
     using AddressHelper for address;
