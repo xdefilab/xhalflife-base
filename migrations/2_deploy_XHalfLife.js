@@ -1,7 +1,8 @@
 const XHalfLife = artifacts.require("XHalfLife");
-
-var XDEX_KOVAN = "0x7042758327753f684568528d5eAb0CD2839c6698";
+const MockToken = artifacts.require("MockToken");
 
 module.exports = async function (deployer) {
-    return deployer.deploy(XHalfLife, XDEX_KOVAN);
+    await deployer.deploy(MockToken, "MOCK", "MOCK", 100000000);
+
+    return deployer.deploy(XHalfLife);
 };
