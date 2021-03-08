@@ -6,11 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 contract MockToken is ERC20, ERC20Detailed {
     address public core;
 
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint256 supply
-    ) public ERC20Detailed(name, symbol, 18) {
+    constructor(string memory name, string memory symbol)
+        public
+        ERC20Detailed(name, symbol, 18)
+    {
         core = msg.sender;
     }
 
